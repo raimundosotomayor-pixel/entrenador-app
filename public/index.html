@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Entrenador</title>
+<style>
+  :root {
+    --bg: #14161a;
+    --card: #1e2127;
+    --text: #eef0f3;
+    --muted: #9aa2ad;
+    --accent: #e07a5f;
+    --accent2: #3d5a80;
+    --danger: #c1121f;
+    --ok: #4caf7d;
+    --border: #2c3038;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --text: #1b1e23;
+      --muted: #5b6470;
+      --border: #e1e4e9;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-bottom: 40px;
+  }
+  header {
+    padding: 20px 16px 12px;
+  }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; }
+  .banner {
+    margin: 12px 16px 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+  }
+  .banner.alerta { border-color: var(--danger); color: var(--danger); }
+  nav.tabs {
+    display: flex;
+    gap: 8px;
+    margin: 16px 16px 0;
+  }
+  nav.tabs button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  nav.tabs button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1b1e23;
+    font-weight: 600;
+  }
+  main { padding: 16px; }
+  section.view { display: none; }
+  section.view.active { display: block; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  select, input[type=text], input[type=number], textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 1rem;
+  }
+  textarea { min-height: 70px; resize: vertical; }
+  .hint {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(224, 122, 95, 0.1);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+  .scale {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .scale button {
+    flex: 1;
+    min-width: 30px;
+    padding: 12px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 1rem;
+  }
+  .scale button.selected {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1b1e23;
+    font-weight: 700;
+  }
+  .check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .check-row input { width: 20px; height: 20px; }
+  .fase-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .fase-row:last-child { border-bottom: none; }
+  .fase-row input { width: 22px; height: 22px; margin-top: 2px; flex-shrink: 0; }
+  .fase-nombre { font-weight: 600; }
+  .fase-detalle { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .fase-row.checked .fase-nombre { text-decoration: line-through; color: var(--muted); }
+  .gym-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 6px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .bloque-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1.4fr 1fr auto;
+    gap: 6px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .gym-row input, .bloque-row input, .bloque-row select { padding: 8px; font-size: 0.9rem; }
+  .gym-row button, .bloque-row button {
+    background: transparent;
+    border: none;
+    color: var(--danger);
+    font-size: 1.2rem;
+  }
+  .add-btn {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    padding: 8px;
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 4px;
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    margin-top: 20px;
+    border-radius: 10px;
+    border: none;
+    background: var(--ok);
+    color: #0e1512;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 16px;
+    right: 16px;
+    padding: 14px;
+    border-radius: 10px;
+    background: var(--ok);
+    color: #0e1512;
+    font-weight: 600;
+    text-align: center;
+    display: none;
+  }
+  .toast.error { background: var(--danger); color: #fff; }
+  .hist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .hist-item:last-child { border-bottom: none; }
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-left: 6px;
+  }
+  .hidden { display: none !important; }
+  .gate {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .gate .card { max-width: 320px; width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="gate hidden" id="pin-gate">
+  <div class="card">
+    <h1 style="font-size:1.1rem;margin-bottom:4px;">🧗 Entrenador</h1>
+    <div class="sub" style="margin-bottom:10px;">Ingresa el PIN de acceso</div>
+    <input type="password" id="pin-input" inputmode="numeric" placeholder="PIN">
+    <button class="submit-btn" id="pin-submit">Entrar</button>
+    <div class="sub" id="pin-error" style="color:var(--danger);margin-top:8px;"></div>
+  </div>
+</div>
+
+<header>
+  <h1>🧗 Entrenador</h1>
+  <div class="sub" id="fecha-hoy">cargando...</div>
+</header>
+
+<div class="banner" id="plan-hoy">Cargando plan de hoy…</div>
+<div class="banner alerta hidden" id="alerta-descarga"></div>
+
+<nav class="tabs">
+  <button id="tab-manana">Mañana</button>
+  <button id="tab-registrar">Entrenamiento</button>
+  <button id="tab-historial">Historial</button>
+</nav>
+
+<main>
+  <section id="view-manana" class="view">
+    <div class="card">
+      <label>Sueño — score Garmin</label>
+      <input type="number" id="m_sueno_score" min="0" max="100" placeholder="ej. 78">
+
+      <label>Horas de sueño</label>
+      <input type="number" id="m_sueno_horas" min="0" max="14" step="0.5" placeholder="ej. 7.5">
+
+      <label>Sensación al despertar (1 = costó levantarse, 5 = fresco y con energía)</label>
+      <div class="scale" id="scale-despertar">
+        <button data-v="1">1</button><button data-v="2">2</button>
+        <button data-v="3">3</button><button data-v="4">4</button>
+        <button data-v="5">5</button>
+      </div>
+
+      <label>Notas (opcional)</label>
+      <textarea id="notas_despertar" placeholder="cómo amaneciste, algo puntual que notaste..."></textarea>
+
+      <button class="submit-btn" id="btn-guardar-manana">Guardar check-in</button>
+    </div>
+  </section>
+
+  <section id="view-registrar" class="view active">
+    <div class="card">
+      <label>Tipo de sesión</label>
+      <select id="tipo">
+        <option value="gym">Gimnasio</option>
+        <option value="boulder_gym">Boulder gym</option>
+        <option value="roca_deportiva">Roca deportiva</option>
+        <option value="roca_trad">Roca trad</option>
+        <option value="trote">Trote</option>
+        <option value="yoga">Yoga</option>
+      </select>
+
+      <div class="hint hidden" id="hint-box"></div>
+
+      <div id="section-fases" class="hidden">
+        <label>Fases de la sesión</label>
+        <div id="fases-rows"></div>
+      </div>
+
+      <label>Fase del ciclo</label>
+      <select id="fase_ciclo">
+        <option value="carga">Carga</option>
+        <option value="descarga">Descarga</option>
+      </select>
+
+      <div id="section-gym" class="hidden">
+        <label>Cargas de gimnasio</label>
+        <div id="gym-rows"></div>
+        <button type="button" class="add-btn" id="add-gym-row">+ Agregar ejercicio</button>
+      </div>
+
+      <div id="section-bloques" class="hidden">
+        <label id="bloques-label">Bloques intentados / enviados</label>
+        <div id="bloques-rows"></div>
+        <button type="button" class="add-btn" id="add-bloque-row">+ Agregar bloque</button>
+      </div>
+
+      <div id="section-sesion-simple" class="hidden">
+        <label>Puntuación de la sesión (1-10)</label>
+        <div class="scale" id="scale-puntuacion">
+          <button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button>
+          <button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button>
+          <button data-v="7">7</button><button data-v="8">8</button><button data-v="9">9</button>
+          <button data-v="10">10</button>
+        </div>
+
+        <label>¿Cómo te sientes después?</label>
+        <textarea id="como_te_sientes" placeholder="ej. liviano, piernas cansadas, buena sensación general..."></textarea>
+      </div>
+
+      <div id="section-fatiga-dolor">
+        <label>Fatiga (1 = fresco, 5 = agotado)</label>
+        <div class="scale" id="scale-fatiga">
+          <button data-v="1">1</button><button data-v="2">2</button>
+          <button data-v="3">3</button><button data-v="4">4</button>
+          <button data-v="5">5</button>
+        </div>
+
+        <label>Dolor (0 = ninguno, 5 = fuerte)</label>
+        <div class="scale" id="scale-dolor">
+          <button data-v="0">0</button><button data-v="1">1</button>
+          <button data-v="2">2</button><button data-v="3">3</button>
+          <button data-v="4">4</button><button data-v="5">5</button>
+        </div>
+      </div>
+
+      <label>Hidratación</label>
+      <select id="hidratacion">
+        <option value="">—</option>
+        <option value="mala">Mala</option>
+        <option value="regular">Regular</option>
+        <option value="buena">Buena</option>
+      </select>
+
+      <label>Comidas clave (opcional)</label>
+      <textarea id="comidas" placeholder="qué comiste antes/después"></textarea>
+
+      <label>Notas libres</label>
+      <textarea id="notas"></textarea>
+
+      <button class="submit-btn" id="btn-guardar">Guardar sesión</button>
+    </div>
+  </section>
+
+  <section id="view-historial" class="view">
+    <div class="card" id="historial-list">Cargando historial…</div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let fechaHoy = null;
+
+// --- Acceso por PIN (solo relevante cuando la app está desplegada en la nube) ---
+let appPin = localStorage.getItem('entrenador_pin') || '';
+
+function mostrarGate(mensajeError) {
+  $('pin-gate').classList.remove('hidden');
+  $('pin-error').textContent = mensajeError || '';
+}
+function ocultarGate() {
+  $('pin-gate').classList.add('hidden');
+}
+
+async function apiFetch(url, opts = {}) {
+  opts.headers = Object.assign({}, opts.headers, appPin ? { 'X-App-Pin': appPin } : {});
+  const r = await fetch(url, opts);
+  if (r.status === 401) {
+    mostrarGate();
+    throw new Error('PIN requerido');
+  }
+  return r;
+}
+
+$('pin-submit').onclick = async () => {
+  const intento = $('pin-input').value.trim();
+  if (!intento) return;
+  const r = await fetch('/api/hoy', { headers: { 'X-App-Pin': intento } });
+  if (r.status === 401) {
+    $('pin-error').textContent = 'PIN incorrecto, intenta de nuevo.';
+    return;
+  }
+  appPin = intento;
+  localStorage.setItem('entrenador_pin', appPin);
+  ocultarGate();
+  iniciar();
+};
+
+function setTab(name) {
+  $('view-manana').classList.toggle('active', name === 'manana');
+  $('view-registrar').classList.toggle('active', name === 'registrar');
+  $('view-historial').classList.toggle('active', name === 'historial');
+  $('tab-manana').classList.toggle('active', name === 'manana');
+  $('tab-registrar').classList.toggle('active', name === 'registrar');
+  $('tab-historial').classList.toggle('active', name === 'historial');
+  if (name === 'historial') cargarHistorial();
+}
+$('tab-manana').onclick = () => setTab('manana');
+$('tab-registrar').onclick = () => setTab('registrar');
+$('tab-historial').onclick = () => setTab('historial');
+
+function toast(msg, isError) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3500);
+}
+
+async function cargarHoy() {
+  const r = await apiFetch('/api/hoy');
+  const d = await r.json();
+  fechaHoy = d.fecha;
+  $('fecha-hoy').textContent = `Hoy es ${d.dia}, ${d.fecha}`;
+  const partes = [];
+  if (d.plan_am) partes.push('AM: ' + d.plan_am);
+  if (d.plan_pm) partes.push('PM: ' + d.plan_pm);
+  $('plan-hoy').textContent = partes.length ? 'Hoy toca — ' + partes.join(' · ') : 'Sin sesión planificada hoy.';
+  $('fase_ciclo').value = d.fase_actual || 'carga';
+
+  if (d.alerta_descarga) {
+    $('alerta-descarga').textContent = `⚠️ Fatiga ≥4 en ${d.alerta_descarga} sesiones seguidas — considera adelantar la descarga.`;
+    $('alerta-descarga').classList.remove('hidden');
+  }
+}
+
+function tipoEsBloques(tipo) {
+  return ['boulder_gym', 'roca_deportiva', 'roca_trad'].includes(tipo);
+}
+function tipoEsSesionSimple(tipo) {
+  return tipo === 'yoga' || tipo === 'trote';
+}
+
+function llenarGymRows(ejercicios) {
+  $('gym-rows').innerHTML = '';
+  if (ejercicios && ejercicios.length) {
+    for (const e of ejercicios) addGymRow(e.nombre, e.series, e.reps);
+  } else {
+    addGymRow();
+  }
+}
+
+function llenarFases(fases) {
+  $('fases-rows').innerHTML = '';
+  $('section-fases').classList.toggle('hidden', !fases || !fases.length);
+  if (!fases) return;
+  fases.forEach((f, i) => {
+    const row = document.createElement('label');
+    row.className = 'fase-row';
+    row.innerHTML = `
+      <input type="checkbox" class="fase-check" data-i="${i}">
+      <div>
+        <div class="fase-nombre">${f.nombre}</div>
+        ${f.detalle ? `<div class="fase-detalle">${f.detalle}</div>` : ''}
+      </div>`;
+    const checkbox = row.querySelector('.fase-check');
+    checkbox.onchange = () => row.classList.toggle('checked', checkbox.checked);
+    $('fases-rows').appendChild(row);
+  });
+}
+
+function recolectarFases() {
+  const nombres = [];
+  document.querySelectorAll('#fases-rows .fase-row').forEach((row) => {
+    nombres.push({
+      nombre: row.querySelector('.fase-nombre').textContent,
+      hecho: row.querySelector('.fase-check').checked,
+    });
+  });
+  return nombres;
+}
+
+async function cargarPlantilla() {
+  const tipo = $('tipo').value;
+  const r = await apiFetch(`/api/plantilla?tipo=${tipo}&fecha=${fechaHoy}`);
+  const d = await r.json();
+
+  if (d.hint) {
+    $('hint-box').textContent = '📋 ' + d.hint;
+    $('hint-box').classList.remove('hidden');
+  } else {
+    $('hint-box').classList.add('hidden');
+  }
+
+  llenarFases(d.fases);
+
+  if (tipo === 'gym') {
+    llenarGymRows(d.ejercicios);
+  }
+}
+
+function actualizarSecciones() {
+  const tipo = $('tipo').value;
+  $('section-gym').classList.toggle('hidden', tipo !== 'gym');
+  $('section-bloques').classList.toggle('hidden', !tipoEsBloques(tipo));
+  $('section-sesion-simple').classList.toggle('hidden', !tipoEsSesionSimple(tipo));
+  $('section-fatiga-dolor').classList.toggle('hidden', tipoEsSesionSimple(tipo));
+  if (tipo === 'boulder_gym') $('bloques-label').textContent = 'Bloques intentados / enviados';
+  if (tipo === 'roca_deportiva' || tipo === 'roca_trad') $('bloques-label').textContent = 'Vías intentadas / enviadas';
+}
+$('tipo').onchange = () => { actualizarSecciones(); cargarPlantilla(); };
+
+function addGymRow(nombre, series, reps, peso) {
+  const row = document.createElement('div');
+  row.className = 'gym-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Ejercicio" class="ej-nombre" value="${nombre ? nombre.replace(/"/g, '') : ''}">
+    <input type="text" placeholder="Series" class="ej-series" value="${series || ''}">
+    <input type="text" placeholder="Reps" class="ej-reps" value="${reps || ''}">
+    <input type="text" placeholder="Peso" class="ej-peso" value="${peso || ''}">
+    <button type="button">×</button>`;
+  row.querySelector('button').onclick = () => row.remove();
+  $('gym-rows').appendChild(row);
+}
+$('add-gym-row').onclick = () => addGymRow();
+
+function addBloqueRow() {
+  const row = document.createElement('div');
+  row.className = 'bloque-row';
+  row.innerHTML = `
+    <input type="text" placeholder="Grado (ej. V6, 11c)" class="bl-grado">
+    <select class="bl-estado">
+      <option value="intentado">Intentado</option>
+      <option value="enviado">Enviado</option>
+    </select>
+    <input type="number" placeholder="Intentos" class="bl-intentos" min="1">
+    <button type="button">×</button>`;
+  row.querySelector('button').onclick = () => row.remove();
+  $('bloques-rows').appendChild(row);
+}
+$('add-bloque-row').onclick = addBloqueRow;
+
+function setupScale(id) {
+  const el = $(id);
+  el.dataset.value = '';
+  el.querySelectorAll('button').forEach((b) => {
+    b.onclick = () => {
+      el.dataset.value = b.dataset.v;
+      el.querySelectorAll('button').forEach((x) => x.classList.remove('selected'));
+      b.classList.add('selected');
+    };
+  });
+}
+setupScale('scale-fatiga');
+setupScale('scale-dolor');
+setupScale('scale-puntuacion');
+setupScale('scale-despertar');
+
+async function cargarCheckinHoy() {
+  const r = await apiFetch(`/api/checkin?fecha=${fechaHoy}`);
+  const c = await r.json();
+  if (c && c.date) {
+    $('m_sueno_score').value = c.sueno_score ?? '';
+    $('m_sueno_horas').value = c.sueno_horas ?? '';
+    $('notas_despertar').value = c.notas_despertar || '';
+    if (c.sensacion_despertar) {
+      const el = $('scale-despertar');
+      el.dataset.value = String(c.sensacion_despertar);
+      el.querySelectorAll('button').forEach((b) => {
+        b.classList.toggle('selected', b.dataset.v === String(c.sensacion_despertar));
+      });
+    }
+  }
+}
+
+$('btn-guardar-manana').onclick = async () => {
+  const sensacion = $('scale-despertar').dataset.value;
+  const payload = {
+    date: fechaHoy,
+    sueno_score: $('m_sueno_score').value ? Number($('m_sueno_score').value) : '',
+    sueno_horas: $('m_sueno_horas').value ? Number($('m_sueno_horas').value) : '',
+    sensacion_despertar: sensacion ? Number(sensacion) : '',
+    notas_despertar: $('notas_despertar').value.trim(),
+  };
+  try {
+    const r = await apiFetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Check-in guardado ✅');
+    } else {
+      toast('Error: ' + d.error, true);
+    }
+  } catch (err) {
+    toast('No se pudo conectar al servidor', true);
+  }
+};
+
+function recolectarEjercicios() {
+  const ejercicios = [];
+  document.querySelectorAll('#gym-rows .gym-row').forEach((row) => {
+    const ejercicio = row.querySelector('.ej-nombre').value.trim();
+    const series = row.querySelector('.ej-series').value.trim();
+    const reps = row.querySelector('.ej-reps').value.trim();
+    const peso = row.querySelector('.ej-peso').value.trim();
+    if (ejercicio || series || reps || peso) ejercicios.push({ ejercicio, series, reps, peso });
+  });
+  return ejercicios;
+}
+
+function recolectarBloques() {
+  const bloques = [];
+  document.querySelectorAll('#bloques-rows .bloque-row').forEach((row) => {
+    const grado = row.querySelector('.bl-grado').value.trim();
+    const estado = row.querySelector('.bl-estado').value;
+    const intentos = row.querySelector('.bl-intentos').value.trim();
+    if (grado) bloques.push({ grado, estado, intentos });
+  });
+  return bloques;
+}
+
+function limpiarEscala(id) {
+  const el = $(id);
+  el.dataset.value = '';
+  el.querySelectorAll('button').forEach((b) => b.classList.remove('selected'));
+}
+
+function limpiarFormulario() {
+  $('como_te_sientes').value = '';
+  $('hidratacion').value = '';
+  $('comidas').value = '';
+  $('notas').value = '';
+  $('bloques-rows').innerHTML = '';
+  addBloqueRow();
+  limpiarEscala('scale-fatiga');
+  limpiarEscala('scale-dolor');
+  limpiarEscala('scale-puntuacion');
+  cargarPlantilla();
+}
+
+$('btn-guardar').onclick = async () => {
+  const tipo = $('tipo').value;
+  const esSimple = tipoEsSesionSimple(tipo);
+
+  const payload = {
+    date: fechaHoy,
+    tipo,
+    fase_ciclo: $('fase_ciclo').value,
+    hidratacion: $('hidratacion').value,
+    comidas: $('comidas').value.trim(),
+    notas: $('notas').value.trim(),
+  };
+
+  if (esSimple) {
+    const puntuacion = $('scale-puntuacion').dataset.value;
+    if (!puntuacion) {
+      toast('Falta marcar la puntuación de la sesión', true);
+      return;
+    }
+    payload.puntuacion_sesion = Number(puntuacion);
+    payload.como_te_sientes = $('como_te_sientes').value.trim();
+  } else {
+    const fatiga = $('scale-fatiga').dataset.value;
+    const dolor = $('scale-dolor').dataset.value;
+    if (!fatiga || dolor === '') {
+      toast('Falta marcar fatiga y dolor', true);
+      return;
+    }
+    payload.fatiga = Number(fatiga);
+    payload.dolor = Number(dolor);
+  }
+
+  if (tipo === 'gym') {
+    payload.ejercicios = recolectarEjercicios();
+  }
+  if (tipoEsBloques(tipo)) {
+    payload.bloques = recolectarBloques();
+  }
+  const fases = recolectarFases();
+  if (fases.length) {
+    payload.fases = fases;
+  }
+
+  try {
+    const r = await apiFetch('/api/sesion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('Sesión guardada ✅');
+      limpiarFormulario();
+      cargarHoy();
+    } else {
+      toast('Error: ' + d.error, true);
+    }
+  } catch (err) {
+    toast('No se pudo conectar al servidor', true);
+  }
+};
+
+async function cargarHistorial() {
+  const r = await apiFetch('/api/historial');
+  const items = await r.json();
+  if (!items.length) {
+    $('historial-list').textContent = 'Sin sesiones registradas todavía.';
+    return;
+  }
+  const color = (f) => (f >= 4 ? '#c1121f' : f >= 3 ? '#e07a5f' : '#4caf7d');
+  $('historial-list').innerHTML = items.map((s) => {
+    const metrica = s.puntuacion_sesion !== '' && s.puntuacion_sesion !== undefined
+      ? `puntuación ${s.puntuacion_sesion}/10`
+      : `fatiga ${s.fatiga ?? '-'} <span class="dot" style="background:${color(s.fatiga || 0)}"></span>`;
+    return `
+    <div class="hist-item">
+      <span>${s.date} · ${s.tipo || ''} ${s.grado_max ? '· ' + s.grado_max : ''}</span>
+      <span>${metrica}</span>
+    </div>`;
+  }).join('');
+}
+
+async function iniciar() {
+  await cargarHoy();
+  actualizarSecciones();
+  addBloqueRow();
+  await cargarPlantilla();
+  await cargarCheckinHoy();
+  setTab(new Date().getHours() < 11 ? 'manana' : 'registrar');
+}
+iniciar();
+</script>
+</body>
+</html>
