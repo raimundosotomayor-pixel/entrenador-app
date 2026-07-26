@@ -6,6 +6,8 @@ const VAULT_SESIONES = process.env.VAULT_SESIONES ||
   'C:\\Users\\rsotomayor\\OneDrive - Axo\\Documentos\\Obsidian Vault\\Entrenamiento\\Sesiones';
 const VAULT_CHECKINS = process.env.VAULT_CHECKINS ||
   'C:\\Users\\rsotomayor\\OneDrive - Axo\\Documentos\\Obsidian Vault\\Entrenamiento\\Checkins';
+const VAULT_PLAN = process.env.VAULT_PLAN ||
+  'C:\\Users\\rsotomayor\\OneDrive - Axo\\Documentos\\Obsidian Vault\\Entrenamiento\\Plan\\plan-app.json';
 
 async function listSesiones() {
   if (!fs.existsSync(VAULT_SESIONES)) return [];
@@ -36,4 +38,8 @@ async function listCheckins() {
     .map((filename) => ({ filename, content: fs.readFileSync(path.join(VAULT_CHECKINS, filename), 'utf8') }));
 }
 
-module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin, listCheckins };
+async function readPlan() {
+  return fs.existsSync(VAULT_PLAN) ? fs.readFileSync(VAULT_PLAN, 'utf8') : null;
+}
+
+module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin, listCheckins, readPlan };

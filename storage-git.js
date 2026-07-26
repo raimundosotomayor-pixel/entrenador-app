@@ -9,6 +9,7 @@ const { execFile } = require('child_process');
 const CLONE_DIR = path.join(__dirname, 'repo-clone');
 const SESIONES_REL = process.env.SESIONES_PATH || 'Sesiones';
 const CHECKINS_REL = process.env.CHECKINS_PATH || 'Checkins';
+const PLAN_REL = process.env.PLAN_PATH || 'Plan/plan-app.json';
 
 function git(args, cwd) {
   return new Promise((resolve, reject) => {
@@ -98,4 +99,10 @@ async function listCheckins() {
   return listMdFiles(CHECKINS_REL);
 }
 
-module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin, listCheckins };
+async function readPlan() {
+  await pull();
+  const full = path.join(CLONE_DIR, PLAN_REL);
+  return fs.existsSync(full) ? fs.readFileSync(full, 'utf8') : null;
+}
+
+module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin, listCheckins, readPlan };

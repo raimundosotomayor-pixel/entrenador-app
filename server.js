@@ -12,138 +12,8 @@ const storage = require('./storage');
 const PORT = process.env.PORT || 8787;
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-
-// Plan semanal en fase de carga (ver Plan/Plan Actual.md en el vault).
-// day: 0=domingo .. 6=sábado.
-const WEEKLY_PLAN = {
-  0: { am: null, pm: 'Roca / rocódromo — técnica o volumen según sensaciones' },
-  1: { am: 'Gimnasio: fuerza completa (empuje + tracción + core)', pm: 'Trote suave' },
-  2: { am: null, pm: 'Escalada (boulder gym) — técnico / proyectos' },
-  3: { am: 'Yoga — movilidad', pm: 'Trote suave' },
-  4: { am: 'Gimnasio liviano (tracción/agarre)', pm: 'Escalada (boulder gym) — resistencia' },
-  5: { am: 'Yoga — flexibilidad', pm: null },
-  6: { am: null, pm: 'Roca / rocódromo — proyectos límite' },
-};
-
-// Rutinas de gimnasio por día de semana (1=lunes, 4=jueves).
-const GYM_EXERCISES = {
-  1: [
-    { nombre: 'Dominadas con carga', series: '5', reps: '5' },
-    { nombre: 'Press banca', series: '4', reps: '6-8' },
-    { nombre: 'Remo en barra', series: '4', reps: '8-10' },
-    { nombre: 'Fondos con carga', series: '3', reps: '8' },
-    { nombre: 'Ab wheel', series: '4', reps: '8-10' },
-    { nombre: "Farmer's carry", series: '4', reps: '30 seg' },
-    { nombre: 'Extensores de muñeca', series: '3', reps: '15' },
-  ],
-  4: [
-    { nombre: 'Dominadas lastradas', series: '4', reps: '5' },
-    { nombre: 'Remo en barra', series: '4', reps: '8' },
-    { nombre: 'Pull-over', series: '3', reps: '10' },
-    { nombre: 'Dead hangs con carga', series: '4', reps: '15 seg' },
-    { nombre: 'Curl de bíceps', series: '3', reps: '10' },
-  ],
-};
-
-// Hints (texto guía) por tipo de sesión y día de semana.
-const HINTS = {
-  gym: { 1: 'Lunes — fuerza completa', 4: 'Jueves — liviano tracción/agarre' },
-  boulder_gym: {
-    2: 'Calentamiento V3-V4 (15 min) · Hangboard half crimp 6×10 seg · Proyectos V7-V8 (50 min, máx 4-5 intentos por problema) · Volumen V4-V5 (15 min)',
-    4: 'Calentamiento en vías fáciles · Campus board 1-3-5 (5 series) · Hangboard open hand 6×10 seg · Circuito encadenado: 3 problemas V4-V5 sin pausa ×4 rondas · 4×4: 4 problemas seguidos ×4 series (2 min descanso) · ARC: 20 min movimiento continuo V2-V3',
-  },
-  roca: {
-    6: 'Proyectos límite, máxima intensidad · Calentamiento progresivo · 60-70% del tiempo en proyecto · Registra intentos y secuencias',
-    0: 'Lee las sensaciones del cuerpo · Volumen cómodo o técnica · Foco en footwork · Descansa si hay fatiga',
-  },
-  yoga: {
-    3: 'Saludo al sol (10 min) · Apertura de caderas · Torsiones de columna · Estiramiento de hombros · Pranayama/respiración',
-    5: 'Movilidad tobillo y cadera · Flexión columna + torsiones · Guerrero/equilibrio · Estiramiento antebrazo y dedo · Relajación guiada (5 min)',
-  },
-  trote: 'Ritmo conversacional, sin series ni cuestas · 40-50 min',
-};
-
-// Fases checkeables de la sesión, por tipo y día de semana.
-const FASES = {
-  boulder_gym: {
-    2: [
-      { nombre: 'Calentamiento', detalle: 'V3-V4 · 15 min' },
-      { nombre: 'Hangboard', detalle: 'Half crimp · 6×10 seg' },
-      { nombre: 'Proyectos', detalle: 'V7-V8 · 50 min · máx 4-5 intentos por problema' },
-      { nombre: 'Volumen', detalle: 'V4-V5 · 15 min' },
-    ],
-    4: [
-      { nombre: 'Calentamiento', detalle: 'Vías fáciles' },
-      { nombre: 'Campus board', detalle: '1-3-5 · 5 series' },
-      { nombre: 'Hangboard', detalle: 'Open hand · 6×10 seg' },
-      { nombre: 'Circuito encadenado', detalle: '3 problemas V4-V5 sin pausa ×4 rondas' },
-      { nombre: '4×4', detalle: '4 problemas seguidos ×4 series (2 min descanso)' },
-      { nombre: 'ARC', detalle: '20 min movimiento continuo V2-V3' },
-    ],
-  },
-  roca: {
-    6: [
-      { nombre: 'Calentamiento', detalle: 'Progresivo' },
-      { nombre: 'Proyecto', detalle: '60-70% del tiempo · máxima intensidad · registra intentos y secuencias' },
-    ],
-    0: [
-      { nombre: 'Lectura de sensaciones', detalle: 'Cuerpo primero que el plan' },
-      { nombre: 'Volumen o técnica', detalle: 'Según sensaciones · foco en footwork' },
-    ],
-  },
-  yoga: {
-    3: [
-      { nombre: 'Saludo al sol', detalle: '10 min' },
-      { nombre: 'Apertura de caderas', detalle: '' },
-      { nombre: 'Torsiones de columna', detalle: '' },
-      { nombre: 'Estiramiento de hombros', detalle: '' },
-      { nombre: 'Pranayama / respiración', detalle: '' },
-    ],
-    5: [
-      { nombre: 'Movilidad tobillo y cadera', detalle: '' },
-      { nombre: 'Flexión columna + torsiones', detalle: '' },
-      { nombre: 'Guerrero / equilibrio', detalle: '' },
-      { nombre: 'Estiramiento antebrazo y dedo', detalle: '' },
-      { nombre: 'Relajación guiada', detalle: '5 min' },
-    ],
-  },
-};
-
-function diaDeFecha(fechaISO) {
-  const [y, m, d] = String(fechaISO).split('-').map(Number);
-  return new Date(y, m - 1, d).getDay();
-}
-
-function obtenerPlantilla(tipo, fechaISO) {
-  const dia = diaDeFecha(fechaISO || todayISO());
-  if (tipo === 'gym') {
-    return { ejercicios: GYM_EXERCISES[dia] || [], fases: [], hint: HINTS.gym[dia] || null };
-  }
-  if (tipo === 'boulder_gym') {
-    return { ejercicios: [], fases: FASES.boulder_gym[dia] || [], hint: null };
-  }
-  if (tipo === 'roca_deportiva' || tipo === 'roca_trad') {
-    return { ejercicios: [], fases: FASES.roca[dia] || [], hint: null };
-  }
-  if (tipo === 'yoga') {
-    return { ejercicios: [], fases: FASES.yoga[dia] || [], hint: null };
-  }
-  if (tipo === 'trote') {
-    return { ejercicios: [], fases: [], hint: HINTS.trote };
-  }
-  return { ejercicios: [], fases: [], hint: null };
-}
-
-function readConfig() {
-  try {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  } catch {
-    return { cicloInicioLunes: todayISO(), cicloSemanasCarga: 3, cicloSemanasDescarga: 1 };
-  }
-}
 
 function todayISO(d = new Date()) {
   const y = d.getFullYear();
@@ -152,17 +22,61 @@ function todayISO(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
+function diaDeFecha(fechaISO) {
+  const [y, m, d] = String(fechaISO).split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
+
+// El plan (semana tipo, ejercicios de gimnasio, fases de sesión, ciclo)
+// vive en Plan/plan-app.json dentro del vault — no está hardcodeado acá.
+// Ver Plan/Formato Plan App.md para el schema.
+function planFallback() {
+  return { ciclo: { inicioLunes: todayISO(), semanasCarga: 3, semanasDescarga: 1 }, dias: {} };
+}
+
+async function obtenerPlan() {
+  try {
+    const raw = await storage.readPlan();
+    if (!raw) return planFallback();
+    return JSON.parse(raw);
+  } catch {
+    return planFallback();
+  }
+}
+
+async function obtenerPlantilla(tipo, fechaISO) {
+  const plan = await obtenerPlan();
+  const dia = diaDeFecha(fechaISO || todayISO());
+  const bloques = (plan.dias && plan.dias[String(dia)]) || [];
+  const bloque = bloques.find((b) => b.tipo === tipo);
+  if (!bloque) return { ejercicios: [], fases: [], hint: null };
+  return {
+    ejercicios: bloque.ejercicios || [],
+    fases: bloque.fases || [],
+    hint: bloque.hint || null,
+  };
+}
+
+async function obtenerPlanHoy(dia) {
+  const plan = await obtenerPlan();
+  const bloques = (plan.dias && plan.dias[String(dia)]) || [];
+  const am = bloques.find((b) => b.momento === 'am');
+  const pm = bloques.find((b) => b.momento === 'pm');
+  return { am: am ? am.descripcion : null, pm: pm ? pm.descripcion : null };
+}
+
 // Calcula fase (carga/descarga) y semana dentro de la fase, a partir de la
-// fecha de inicio del ciclo configurada en config.json — nunca se elige a mano.
-function calcularFaseCiclo(fechaISO) {
-  const cfg = readConfig();
-  const [y0, m0, d0] = cfg.cicloInicioLunes.split('-').map(Number);
+// fecha de inicio del ciclo definida en Plan/plan-app.json — nunca a mano.
+async function calcularFaseCiclo(fechaISO) {
+  const plan = await obtenerPlan();
+  const cfg = plan.ciclo || planFallback().ciclo;
+  const [y0, m0, d0] = cfg.inicioLunes.split('-').map(Number);
   const inicio = Date.UTC(y0, m0 - 1, d0);
   const [y, m, d] = String(fechaISO).split('-').map(Number);
   const fecha = Date.UTC(y, m - 1, d);
 
-  const semanasCarga = cfg.cicloSemanasCarga || 3;
-  const semanasDescarga = cfg.cicloSemanasDescarga || 1;
+  const semanasCarga = cfg.semanasCarga || 3;
+  const semanasDescarga = cfg.semanasDescarga || 1;
   const semanasCiclo = semanasCarga + semanasDescarga;
   const diasCiclo = semanasCiclo * 7;
 
@@ -248,7 +162,7 @@ async function buildResumenSemanal() {
 
   const sesiones = (await readSessions()).filter((s) => s.date >= desde && s.date <= hoy);
   const checkins = (await readCheckins()).filter((c) => c.date >= desde && c.date <= hoy);
-  const ciclo = calcularFaseCiclo(hoy);
+  const ciclo = await calcularFaseCiclo(hoy);
   const alerta = calcularAlertaDescarga(await readSessions());
 
   let texto = `RESUMEN SEMANAL — ${desde} a ${hoy}\n`;
@@ -366,7 +280,7 @@ ${fasesSection}${gymTable}${bloquesTable}${notasTecnicasSection}${sesionSimpleSe
 
 async function guardarSesion(s) {
   // La fase del ciclo nunca se elige a mano: siempre se calcula por fecha.
-  s.fase_ciclo = calcularFaseCiclo(s.date).fase;
+  s.fase_ciclo = (await calcularFaseCiclo(s.date)).fase;
 
   const existentes = (await storage.listSesiones()).map((f) => f.filename);
   let filename = `${s.date}.md`;
@@ -461,7 +375,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (pathname === '/api/plantilla' && req.method === 'GET') {
-      const plantilla = obtenerPlantilla(query.tipo, query.fecha);
+      const plantilla = await obtenerPlantilla(query.tipo, query.fecha);
       sendJSON(res, 200, plantilla);
       return;
     }
@@ -492,11 +406,11 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/hoy' && req.method === 'GET') {
       const now = new Date();
       const dayIdx = now.getDay();
-      const plan = WEEKLY_PLAN[dayIdx];
+      const fechaHoy = todayISO(now);
+      const plan = await obtenerPlanHoy(dayIdx);
       const sessions = await readSessions();
       const alerta = calcularAlertaDescarga(sessions);
-      const fechaHoy = todayISO(now);
-      const ciclo = calcularFaseCiclo(fechaHoy);
+      const ciclo = await calcularFaseCiclo(fechaHoy);
       sendJSON(res, 200, {
         fecha: fechaHoy,
         dia: DIAS[dayIdx],
