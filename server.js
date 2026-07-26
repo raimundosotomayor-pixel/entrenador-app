@@ -141,7 +141,7 @@ function readConfig() {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
   } catch {
-    return { faseActual: 'carga' };
+    return { cicloInicioLunes: todayISO(), cicloSemanasCarga: 3, cicloSemanasDescarga: 1 };
   }
 }
 
@@ -150,6 +150,30 @@ function todayISO(d = new Date()) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+// Calcula fase (carga/descarga) y semana dentro de la fase, a partir de la
+// fecha de inicio del ciclo configurada en config.json — nunca se elige a mano.
+function calcularFaseCiclo(fechaISO) {
+  const cfg = readConfig();
+  const [y0, m0, d0] = cfg.cicloInicioLunes.split('-').map(Number);
+  const inicio = Date.UTC(y0, m0 - 1, d0);
+  const [y, m, d] = String(fechaISO).split('-').map(Number);
+  const fecha = Date.UTC(y, m - 1, d);
+
+  const semanasCarga = cfg.cicloSemanasCarga || 3;
+  const semanasDescarga = cfg.cicloSemanasDescarga || 1;
+  const semanasCiclo = semanasCarga + semanasDescarga;
+  const diasCiclo = semanasCiclo * 7;
+
+  const diasDesdeInicio = Math.round((fecha - inicio) / 86400000);
+  const diaEnCiclo = ((diasDesdeInicio % diasCiclo) + diasCiclo) % diasCiclo;
+  const semanaEnCiclo = Math.floor(diaEnCiclo / 7); // 0-indexed
+
+  if (semanaEnCiclo < semanasCarga) {
+    return { fase: 'carga', semana: semanaEnCiclo + 1, semanaTotal: semanasCarga };
+  }
+  return { fase: 'descarga', semana: semanaEnCiclo - semanasCarga + 1, semanaTotal: semanasDescarga };
 }
 
 // --- Lectura de sesiones existentes (para historial + flag de fatiga) ---
@@ -190,6 +214,67 @@ function calcularAlertaDescarga(sessions) {
     else streak = 0;
   }
   return streak >= 3 ? streak : 0;
+}
+
+async function readCheckins() {
+  const files = await storage.listCheckins();
+  const checkins = [];
+  for (const { filename, content } of files) {
+    const fm = parseFrontmatter(content);
+    if (fm) checkins.push({ archivo: filename, ...fm });
+  }
+  checkins.sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
+  return checkins;
+}
+
+// --- Resumen semanal para pegar en el Claude Project "Entrenador" ---
+
+function ultimosNDias(n, hastaISO) {
+  const [y, m, d] = hastaISO.split('-').map(Number);
+  const fin = new Date(y, m - 1, d);
+  const fechas = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const f = new Date(fin);
+    f.setDate(f.getDate() - i);
+    fechas.push(todayISO(f));
+  }
+  return fechas;
+}
+
+async function buildResumenSemanal() {
+  const hoy = todayISO();
+  const dias = ultimosNDias(7, hoy);
+  const desde = dias[0];
+
+  const sesiones = (await readSessions()).filter((s) => s.date >= desde && s.date <= hoy);
+  const checkins = (await readCheckins()).filter((c) => c.date >= desde && c.date <= hoy);
+  const ciclo = calcularFaseCiclo(hoy);
+  const alerta = calcularAlertaDescarga(await readSessions());
+
+  let texto = `RESUMEN SEMANAL — ${desde} a ${hoy}\n`;
+  texto += `Fase actual: ${ciclo.fase}${ciclo.fase === 'carga' ? ` (semana ${ciclo.semana}/${ciclo.semanaTotal})` : ''}\n`;
+  if (alerta) texto += `⚠️ Fatiga alta sostenida: ${alerta} sesiones seguidas con fatiga >=4.\n`;
+  texto += `\n--- Check-ins matutinos ---\n`;
+  if (!checkins.length) texto += `(sin check-ins registrados esta semana)\n`;
+  for (const c of checkins) {
+    texto += `${c.date}: sueño ${yamlVal(c.sueno_score)} (score) / ${yamlVal(c.sueno_horas)}h, sensación al despertar ${yamlVal(c.sensacion_despertar)}/5${c.notas_despertar ? ` — "${c.notas_despertar}"` : ''}\n`;
+  }
+
+  texto += `\n--- Sesiones ---\n`;
+  if (!sesiones.length) texto += `(sin sesiones registradas esta semana)\n`;
+  for (const s of sesiones) {
+    const partes = [`${s.date}: ${s.tipo}`];
+    if (s.grado_max) partes.push(`grado(s) ${s.grado_max}`);
+    if (s.puntuacion_sesion !== '' && s.puntuacion_sesion !== undefined) partes.push(`puntuación ${s.puntuacion_sesion}/10`);
+    if (s.fatiga !== '' && s.fatiga !== undefined) partes.push(`fatiga ${s.fatiga}/5`);
+    if (s.dolor !== '' && s.dolor !== undefined) partes.push(`dolor ${s.dolor}/5`);
+    if (s.fases_total) partes.push(`fases ${s.fases_completadas}/${s.fases_total}`);
+    if (s.notas) partes.push(`notas: "${s.notas}"`);
+    texto += partes.join(' | ') + '\n';
+  }
+
+  texto += `\nPregunta para el entrenador: según estos datos y las reglas de ajuste del plan, ¿hay que modificar algo para la próxima semana?`;
+  return texto;
 }
 
 // --- Escritura de una sesión nueva ---
@@ -280,6 +365,9 @@ ${fasesSection}${gymTable}${bloquesTable}${notasTecnicasSection}${sesionSimpleSe
 }
 
 async function guardarSesion(s) {
+  // La fase del ciclo nunca se elige a mano: siempre se calcula por fecha.
+  s.fase_ciclo = calcularFaseCiclo(s.date).fase;
+
   const existentes = (await storage.listSesiones()).map((f) => f.filename);
   let filename = `${s.date}.md`;
   let i = 2;
@@ -378,6 +466,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/resumen-semanal' && req.method === 'GET') {
+      const texto = await buildResumenSemanal();
+      sendJSON(res, 200, { texto });
+      return;
+    }
+
     if (pathname === '/api/checkin' && req.method === 'GET') {
       const fecha = query.fecha || todayISO();
       sendJSON(res, 200, (await leerCheckin(fecha)) || {});
@@ -401,12 +495,16 @@ const server = http.createServer(async (req, res) => {
       const plan = WEEKLY_PLAN[dayIdx];
       const sessions = await readSessions();
       const alerta = calcularAlertaDescarga(sessions);
+      const fechaHoy = todayISO(now);
+      const ciclo = calcularFaseCiclo(fechaHoy);
       sendJSON(res, 200, {
-        fecha: todayISO(now),
+        fecha: fechaHoy,
         dia: DIAS[dayIdx],
         plan_am: plan.am,
         plan_pm: plan.pm,
-        fase_actual: readConfig().faseActual,
+        fase_actual: ciclo.fase,
+        semana_fase: ciclo.semana,
+        semana_fase_total: ciclo.semanaTotal,
         alerta_descarga: alerta,
       });
       return;

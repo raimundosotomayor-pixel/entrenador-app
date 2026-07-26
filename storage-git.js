@@ -94,4 +94,8 @@ async function writeCheckin(filename, content) {
   return writeFile(CHECKINS_REL, filename, content, `Check-in ${filename}`);
 }
 
-module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin };
+async function listCheckins() {
+  return listMdFiles(CHECKINS_REL);
+}
+
+module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin, listCheckins };

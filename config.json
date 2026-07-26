@@ -1,3 +1,5 @@
 {
-  "faseActual": "carga"
+  "cicloInicioLunes": "2026-07-13",
+  "cicloSemanasCarga": 3,
+  "cicloSemanasDescarga": 1
 }

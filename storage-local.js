@@ -29,4 +29,11 @@ async function writeCheckin(filename, content) {
   fs.writeFileSync(path.join(VAULT_CHECKINS, filename), content, 'utf8');
 }
 
-module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin };
+async function listCheckins() {
+  if (!fs.existsSync(VAULT_CHECKINS)) return [];
+  return fs.readdirSync(VAULT_CHECKINS)
+    .filter((f) => f.endsWith('.md'))
+    .map((filename) => ({ filename, content: fs.readFileSync(path.join(VAULT_CHECKINS, filename), 'utf8') }));
+}
+
+module.exports = { listSesiones, writeSesion, readCheckin, writeCheckin, listCheckins };

@@ -296,12 +296,6 @@
         <div id="fases-rows"></div>
       </div>
 
-      <label>Fase del ciclo</label>
-      <select id="fase_ciclo">
-        <option value="carga">Carga</option>
-        <option value="descarga">Descarga</option>
-      </select>
-
       <div id="section-gym" class="hidden">
         <label>Cargas de gimnasio</label>
         <div id="gym-rows"></div>
@@ -363,6 +357,12 @@
 
   <section id="view-historial" class="view">
     <div class="card" id="historial-list">Cargando historial…</div>
+    <div class="card">
+      <label style="margin-top:0">Resumen semanal (para el Claude Project "Entrenador")</label>
+      <button type="button" class="add-btn" id="btn-resumen">Generar resumen</button>
+      <textarea id="resumen-texto" class="hidden" readonly style="min-height:220px;margin-top:10px;font-size:0.8rem;"></textarea>
+      <button type="button" class="submit-btn hidden" id="btn-copiar-resumen">Copiar</button>
+    </div>
   </section>
 </main>
 
@@ -371,6 +371,7 @@
 <script>
 const $ = (id) => document.getElementById(id);
 let fechaHoy = null;
+let faseActual = 'carga';
 
 // --- Acceso por PIN (solo relevante cuando la app está desplegada en la nube) ---
 let appPin = localStorage.getItem('entrenador_pin') || '';
@@ -432,12 +433,13 @@ async function cargarHoy() {
   const r = await apiFetch('/api/hoy');
   const d = await r.json();
   fechaHoy = d.fecha;
-  $('fecha-hoy').textContent = `Hoy es ${d.dia}, ${d.fecha}`;
+  faseActual = d.fase_actual || 'carga';
+  const faseLabel = d.fase_actual === 'descarga' ? 'Descarga' : `Carga — semana ${d.semana_fase}/${d.semana_fase_total}`;
+  $('fecha-hoy').textContent = `Hoy es ${d.dia}, ${d.fecha} · ${faseLabel}`;
   const partes = [];
   if (d.plan_am) partes.push('AM: ' + d.plan_am);
   if (d.plan_pm) partes.push('PM: ' + d.plan_pm);
   $('plan-hoy').textContent = partes.length ? 'Hoy toca — ' + partes.join(' · ') : 'Sin sesión planificada hoy.';
-  $('fase_ciclo').value = d.fase_actual || 'carga';
 
   if (d.alerta_descarga) {
     $('alerta-descarga').textContent = `⚠️ Fatiga ≥4 en ${d.alerta_descarga} sesiones seguidas — considera adelantar la descarga.`;
@@ -659,7 +661,7 @@ $('btn-guardar').onclick = async () => {
   const payload = {
     date: fechaHoy,
     tipo,
-    fase_ciclo: $('fase_ciclo').value,
+    fase_ciclo: faseActual,
     hidratacion: $('hidratacion').value,
     comidas: $('comidas').value.trim(),
     notas: $('notas').value.trim(),
@@ -733,6 +735,30 @@ async function cargarHistorial() {
     </div>`;
   }).join('');
 }
+
+$('btn-resumen').onclick = async () => {
+  $('btn-resumen').textContent = 'Generando…';
+  try {
+    const r = await apiFetch('/api/resumen-semanal');
+    const d = await r.json();
+    $('resumen-texto').value = d.texto;
+    $('resumen-texto').classList.remove('hidden');
+    $('btn-copiar-resumen').classList.remove('hidden');
+  } catch (err) {
+    toast('No se pudo generar el resumen', true);
+  }
+  $('btn-resumen').textContent = 'Generar resumen';
+};
+
+$('btn-copiar-resumen').onclick = async () => {
+  try {
+    await navigator.clipboard.writeText($('resumen-texto').value);
+    toast('Resumen copiado ✅');
+  } catch (err) {
+    $('resumen-texto').select();
+    toast('Selecciona y copia manualmente (Ctrl/Cmd+C)');
+  }
+};
 
 async function iniciar() {
   await cargarHoy();
