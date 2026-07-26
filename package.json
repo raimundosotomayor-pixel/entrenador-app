@@ -1,0 +1,13 @@
+{
+  "name": "entrenador-app",
+  "version": "1.0.0",
+  "description": "Formulario de seguimiento de entrenamiento de escalada, con almacenamiento local o via git.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
