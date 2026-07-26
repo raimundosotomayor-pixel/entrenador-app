@@ -12,7 +12,8 @@ const CHECKINS_REL = process.env.CHECKINS_PATH || 'Checkins';
 
 function git(args, cwd) {
   return new Promise((resolve, reject) => {
-    execFile('git', args, { cwd: cwd || CLONE_DIR, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+    const env = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0' });
+    execFile('git', args, { cwd: cwd || CLONE_DIR, maxBuffer: 10 * 1024 * 1024, env }, (err, stdout, stderr) => {
       if (err) reject(new Error(stderr || err.message));
       else resolve(stdout);
     });
@@ -24,7 +25,9 @@ function remoteUrl() {
   if (!GITHUB_TOKEN || !GITHUB_REPO_URL) {
     throw new Error('Faltan GITHUB_TOKEN o GITHUB_REPO_URL en el entorno');
   }
-  return GITHUB_REPO_URL.replace('https://', `https://${GITHUB_TOKEN}@`);
+  // Formato recomendado por GitHub para autenticar con un token via HTTPS:
+  // usuario ficticio "x-access-token" + el token como contraseña.
+  return GITHUB_REPO_URL.replace('https://', `https://x-access-token:${encodeURIComponent(GITHUB_TOKEN)}@`);
 }
 
 let cloned = null;
