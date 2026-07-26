@@ -458,9 +458,4 @@ server.listen(PORT, () => {
     console.log('Para usarla desde el celular, busca la IP local de este PC (ipconfig) y entra a http://<esa-IP>:' + PORT);
   }
   if (process.env.APP_PIN) console.log('PIN requerido para /api/*.');
-  if (process.env.GITHUB_TOKEN) {
-    console.log(`[diagnostico] GITHUB_TOKEN largo=${process.env.GITHUB_TOKEN.length} prefijo=${process.env.GITHUB_TOKEN.slice(0, 12)} sufijo=${process.env.GITHUB_TOKEN.slice(-4)}`);
-  }
-  console.log(`[diagnostico] GITHUB_REPO_URL="${process.env.GITHUB_REPO_URL}"`);
-  console.log(`[diagnostico] GITHUB_BRANCH="${process.env.GITHUB_BRANCH}"`);
 });
