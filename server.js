@@ -461,4 +461,6 @@ server.listen(PORT, () => {
   if (process.env.GITHUB_TOKEN) {
     console.log(`[diagnostico] GITHUB_TOKEN largo=${process.env.GITHUB_TOKEN.length} prefijo=${process.env.GITHUB_TOKEN.slice(0, 12)} sufijo=${process.env.GITHUB_TOKEN.slice(-4)}`);
   }
+  console.log(`[diagnostico] GITHUB_REPO_URL="${process.env.GITHUB_REPO_URL}"`);
+  console.log(`[diagnostico] GITHUB_BRANCH="${process.env.GITHUB_BRANCH}"`);
 });
