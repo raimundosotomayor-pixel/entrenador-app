@@ -404,15 +404,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (pathname === '/api/hoy' && req.method === 'GET') {
-      const now = new Date();
-      const dayIdx = now.getDay();
-      const fechaHoy = todayISO(now);
+      const fecha = query.fecha || todayISO();
+      const dayIdx = diaDeFecha(fecha);
       const plan = await obtenerPlanHoy(dayIdx);
       const sessions = await readSessions();
       const alerta = calcularAlertaDescarga(sessions);
-      const ciclo = await calcularFaseCiclo(fechaHoy);
+      const ciclo = await calcularFaseCiclo(fecha);
       sendJSON(res, 200, {
-        fecha: fechaHoy,
+        fecha,
+        hoyReal: todayISO(),
         dia: DIAS[dayIdx],
         plan_am: plan.am,
         plan_pm: plan.pm,

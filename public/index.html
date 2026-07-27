@@ -38,6 +38,30 @@
   }
   h1 { font-size: 1.3rem; margin: 0 0 4px; }
   .sub { color: var(--muted); font-size: 0.9rem; }
+  .date-nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .date-nav .sub { flex: 1; text-align: center; }
+  .date-nav button {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 0.8rem;
+    padding: 4px 0;
+    margin-top: 4px;
+  }
   .banner {
     margin: 12px 16px 0;
     padding: 12px 14px;
@@ -242,7 +266,12 @@
 
 <header>
   <h1>🧗 Entrenador</h1>
-  <div class="sub" id="fecha-hoy">cargando...</div>
+  <div class="date-nav">
+    <button id="dia-prev" aria-label="Día anterior">‹</button>
+    <div class="sub" id="fecha-hoy">cargando...</div>
+    <button id="dia-next" aria-label="Día siguiente">›</button>
+  </div>
+  <button id="dia-hoy" class="link-btn hidden">Volver a hoy</button>
 </header>
 
 <div class="banner" id="plan-hoy">Cargando plan de hoy…</div>
@@ -429,23 +458,61 @@ function toast(msg, isError) {
   setTimeout(() => { t.style.display = 'none'; }, 3500);
 }
 
+let hoyReal = null;
+
+function formatearFechaISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 async function cargarHoy() {
-  const r = await apiFetch('/api/hoy');
+  const url = fechaHoy ? `/api/hoy?fecha=${fechaHoy}` : '/api/hoy';
+  const r = await apiFetch(url);
   const d = await r.json();
   fechaHoy = d.fecha;
+  hoyReal = d.hoyReal;
   faseActual = d.fase_actual || 'carga';
   const faseLabel = d.fase_actual === 'descarga' ? 'Descarga' : `Carga — semana ${d.semana_fase}/${d.semana_fase_total}`;
-  $('fecha-hoy').textContent = `Hoy es ${d.dia}, ${d.fecha} · ${faseLabel}`;
+  const prefijo = d.fecha === hoyReal ? 'Hoy es' : 'Viendo';
+  $('fecha-hoy').textContent = `${prefijo} ${d.dia}, ${d.fecha} · ${faseLabel}`;
+  $('dia-hoy').classList.toggle('hidden', d.fecha === hoyReal);
   const partes = [];
   if (d.plan_am) partes.push('AM: ' + d.plan_am);
   if (d.plan_pm) partes.push('PM: ' + d.plan_pm);
-  $('plan-hoy').textContent = partes.length ? 'Hoy toca — ' + partes.join(' · ') : 'Sin sesión planificada hoy.';
+  $('plan-hoy').textContent = partes.length ? 'Ese día toca — ' + partes.join(' · ') : 'Sin sesión planificada ese día.';
 
+  $('alerta-descarga').classList.add('hidden');
   if (d.alerta_descarga) {
     $('alerta-descarga').textContent = `⚠️ Fatiga ≥4 en ${d.alerta_descarga} sesiones seguidas — considera adelantar la descarga.`;
     $('alerta-descarga').classList.remove('hidden');
   }
 }
+
+async function recargarParaFecha() {
+  await cargarHoy();
+  actualizarSecciones();
+  await cargarPlantilla();
+  await cargarCheckinHoy();
+}
+
+$('dia-prev').onclick = () => {
+  const d = new Date(fechaHoy + 'T00:00:00');
+  d.setDate(d.getDate() - 1);
+  fechaHoy = formatearFechaISO(d);
+  recargarParaFecha();
+};
+$('dia-next').onclick = () => {
+  const d = new Date(fechaHoy + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  fechaHoy = formatearFechaISO(d);
+  recargarParaFecha();
+};
+$('dia-hoy').onclick = () => {
+  fechaHoy = hoyReal;
+  recargarParaFecha();
+};
 
 function tipoEsBloques(tipo) {
   return ['boulder_gym', 'roca_deportiva', 'roca_trad'].includes(tipo);
@@ -572,6 +639,12 @@ setupScale('scale-despertar');
 async function cargarCheckinHoy() {
   const r = await apiFetch(`/api/checkin?fecha=${fechaHoy}`);
   const c = await r.json();
+
+  $('m_sueno_score').value = '';
+  $('m_sueno_horas').value = '';
+  $('notas_despertar').value = '';
+  limpiarEscala('scale-despertar');
+
   if (c && c.date) {
     $('m_sueno_score').value = c.sueno_score ?? '';
     $('m_sueno_horas').value = c.sueno_horas ?? '';
